@@ -1,5 +1,5 @@
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integration/supabase/client';
 import { TradingSession } from '@/types/session';
 import { validateSessionData } from '@/utils/candleValidation';
 

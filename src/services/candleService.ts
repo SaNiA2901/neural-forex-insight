@@ -1,5 +1,5 @@
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integration/supabase/client';
 import { CandleData } from '@/types/session';
 
 // Кэш для свечей по сессиям
