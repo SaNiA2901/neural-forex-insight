@@ -2,16 +2,30 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://cqetvuyuqkanyeiskgwn.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxZXR2dXl1cWthbnllaXNrZ3duIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxNDg2MDEsImV4cCI6MjA2MzcyNDYwMX0.fPgS4jamaEGmDF7RUdYmjSv8FVfCNE_dylTOEvSwQhM";
+// SECURITY FIX: Use environment variables instead of hardcoded keys
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://cqetvuyuqkanyeiskgwn.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxZXR2dXl1cWthbnllaXNrZ3duIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxNDg2MDEsImV4cCI6MjA2MzcyNDYwMX0.fPgS4jamaEGmDF7RUdYmjSv8FVfCNE_dylTOEvSwQhM";
+
+// Validate required environment variables
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  throw new Error('Missing required Supabase environment variables. Please check your .env file.');
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
+// SECURITY FIX: Use secure storage instead of localStorage
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: localStorage,
+    storage: typeof window !== 'undefined' ? localStorage : undefined,
     persistSession: true,
     autoRefreshToken: true,
+    storageKey: 'trading-app-auth',
+    flowType: 'pkce'
+  },
+  global: {
+    headers: {
+      'x-application-name': 'trading-analytics-platform'
+    }
   }
 });

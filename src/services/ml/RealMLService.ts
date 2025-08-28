@@ -51,10 +51,13 @@ export class RealMLService {
   }
 
   private initializeNetwork(): void {
-    // Xavier/Glorot инициализация
+    // SECURITY FIX: Import secure random
+    const { secureRandom } = require('@/utils/secureCrypto');
+    
+    // Xavier/Glorot инициализация с безопасным RNG
     const initWeight = (fanIn: number, fanOut: number) => {
       const limit = Math.sqrt(6 / (fanIn + fanOut));
-      return (Math.random() * 2 - 1) * limit;
+      return (secureRandom() * 2 - 1) * limit;
     };
 
     this.weights = {
@@ -213,12 +216,14 @@ export class RealMLService {
   private async trainNetwork(): Promise<void> {
     if (this.trainingData.length < 10) return;
 
+    const startTime = Date.now(); // Fix: Define startTime
     const batchSize = Math.min(32, this.trainingData.length);
     const epochs = 5;
     
     for (let epoch = 0; epoch < epochs; epoch++) {
-      // Случайное перемешивание данных
-      const shuffled = [...this.trainingData].sort(() => Math.random() - 0.5);
+      // SECURITY FIX: Безопасное перемешивание данных
+      const { secureShuffleArray } = require('@/utils/secureCrypto');
+      const shuffled = secureShuffleArray([...this.trainingData]);
       
       for (let i = 0; i < shuffled.length; i += batchSize) {
         const batch = shuffled.slice(i, i + batchSize);
@@ -228,7 +233,9 @@ export class RealMLService {
 
     this.lastTrainingTime = Date.now();
     this.calculateAccuracy();
-    console.log(`🧠 Сеть обучена. Точность: ${(this.modelAccuracy * 100).toFixed(1)}%`);
+    // PRODUCTION FIX: Replace console.log with structured logging
+    const { logger } = require('@/utils/logger');
+    logger.mlTraining(this.modelAccuracy, this.trainingData.length, Date.now() - startTime);
   }
 
   private async trainBatch(batch: TrainingExample[]): Promise<void> {
