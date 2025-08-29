@@ -4,7 +4,7 @@
  */
 
 import { FeatureStore, FeatureVector } from '../../services/cache/FeatureStore';
-import { RedisClientManager } from '../../services/cache/RedisClient';
+import { RedisClient } from '../../services/cache/RedisClient';
 
 // Mock Redis client
 const mockRedisClient = {
@@ -29,9 +29,9 @@ const mockPipeline = {
 mockRedisClient.multi.mockReturnValue(mockPipeline);
 
 // Mock Redis client manager
-class MockRedisManager extends RedisClientManager {
+class MockRedisManager {
   constructor() {
-    super();
+    // Mock implementation
   }
 
   getClient(): any {
