@@ -3,7 +3,7 @@
  * High-performance caching for technical indicators and feature vectors
  */
 
-import { redisClient, RedisClientManager } from './RedisClient';
+import { redisClient } from './RedisClient';
 import { TechnicalIndicators } from '@/services/indicators/TechnicalIndicators';
 import { CandleData } from '@/types/session';
 
@@ -53,7 +53,7 @@ export interface BatchResult {
 }
 
 export class FeatureStore {
-  private redis: RedisClientManager;
+  private redis: any;
   private metrics: FeatureStoreMetrics;
   private readonly VERSION = '1.0.0';
   
@@ -65,7 +65,7 @@ export class FeatureStore {
     INDICATORS: 15 * 60      // 15 minutes for technical indicators
   };
 
-  constructor(redisManager?: RedisClientManager) {
+  constructor(redisManager?: any) {
     this.redis = redisManager || redisClient;
     this.metrics = {
       totalRequests: 0,

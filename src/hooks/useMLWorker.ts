@@ -1,78 +1,70 @@
 /**
  * ML Worker Hook
- * Provides interface for using ML computation Web Worker
+ * Interface for offloading ML computations to web workers
  */
 
-import { useCallback, useRef, useEffect, useState } from 'react';
+import { useRef, useCallback, useEffect, useState } from 'react';
+import { errorHandler, ErrorCategory } from '@/utils/errorHandler';
 import { logger } from '@/utils/logger';
-import { errorHandler } from '@/utils/errorHandler';
 
-interface MLWorkerTask {
+interface MLWorkerMessage {
   id: string;
-  type: 'FEATURE_EXTRACTION' | 'PREDICTION' | 'TRAINING';
+  type: 'FEATURE_EXTRACTION' | 'PREDICTION' | 'TRAINING' | 'CANCEL';
   payload: any;
+}
+
+interface MLWorkerResponse {
+  id: string;
+  type: 'SUCCESS' | 'ERROR' | 'PROGRESS';
+  payload: any;
+}
+
+interface PendingRequest {
+  resolve: (value: any) => void;
+  reject: (error: any) => void;
   onProgress?: (progress: number, status: string) => void;
-  onSuccess?: (result: any) => void;
-  onError?: (error: string) => void;
 }
 
-interface MLWorkerHookResult {
-  executeTask: (task: Omit<MLWorkerTask, 'id'>) => Promise<any>;
-  cancelTask: (taskId: string) => void;
-  isWorkerAvailable: boolean;
-  activeTasks: string[];
-}
-
-export const useMLWorker = (): MLWorkerHookResult => {
+export const useMLWorker = () => {
   const workerRef = useRef<Worker | null>(null);
+  const pendingRequests = useRef<Map<string, PendingRequest>>(new Map());
   const [isWorkerAvailable, setIsWorkerAvailable] = useState(false);
-  const [activeTasks, setActiveTasks] = useState<string[]>([]);
-  const pendingTasks = useRef<Map<string, {
-    resolve: (value: any) => void;
-    reject: (reason: any) => void;
-    onProgress?: (progress: number, status: string) => void;
-  }>>(new Map());
 
   // Initialize worker
   useEffect(() => {
     try {
-      // Check if Web Workers are supported
-      if (typeof Worker === 'undefined') {
-        logger.warn('Web Workers not supported in this environment');
-        return;
-      }
-
-      // Create worker
       workerRef.current = new Worker(
         new URL('../workers/mlWorker.ts', import.meta.url),
         { type: 'module' }
       );
 
-      // Handle worker messages
-      workerRef.current.onmessage = (event) => {
-        const { id, type, payload } = event.data;
-        const task = pendingTasks.current.get(id);
+      setIsWorkerAvailable(true);
+      logger.info('ML Worker initialized successfully');
 
-        if (!task) return;
+      // Handle worker messages
+      workerRef.current.onmessage = (event: MessageEvent<MLWorkerResponse>) => {
+        const { id, type, payload } = event.data;
+        const request = pendingRequests.current.get(id);
+
+        if (!request) {
+          logger.warn('Received response for unknown request', { id });
+          return;
+        }
 
         switch (type) {
           case 'SUCCESS':
-            task.resolve(payload);
-            pendingTasks.current.delete(id);
-            setActiveTasks(prev => prev.filter(taskId => taskId !== id));
-            logger.debug('ML Worker task completed', { taskId: id });
+            request.resolve(payload);
+            pendingRequests.current.delete(id);
             break;
 
           case 'ERROR':
-            task.reject(new Error(payload.error));
-            pendingTasks.current.delete(id);
-            setActiveTasks(prev => prev.filter(taskId => taskId !== id));
-            logger.error('ML Worker task failed', { taskId: id, error: payload.error });
+            request.reject(new Error(payload.error || 'ML Worker error'));
+            pendingRequests.current.delete(id);
             break;
 
           case 'PROGRESS':
-            if (task.onProgress) {
-              task.onProgress(payload.progress, payload.status);
+            if (request.onProgress) {
+              request.onProgress(payload.progress, payload.status);
             }
             break;
         }
@@ -81,95 +73,141 @@ export const useMLWorker = (): MLWorkerHookResult => {
       // Handle worker errors
       workerRef.current.onerror = (error) => {
         logger.error('ML Worker error', { error });
-        errorHandler.handleError(new Error('ML Worker error'), { 
-          context: 'ml-worker',
-          error 
-        });
+        errorHandler.handleError(
+          new Error('ML Worker error'), 
+          ErrorCategory.ML_PREDICTION, 
+          { context: 'ml-worker' }
+        );
         setIsWorkerAvailable(false);
       };
 
-      setIsWorkerAvailable(true);
-      logger.info('ML Worker initialized successfully');
+      workerRef.current.onmessageerror = (error) => {
+        logger.error('ML Worker message error', { error });
+        errorHandler.handleError(
+          new Error('ML Worker message error'), 
+          ErrorCategory.ML_PREDICTION, 
+          { context: 'ml-worker-message' }
+        );
+      };
 
     } catch (error) {
       logger.error('Failed to initialize ML Worker', { error });
       setIsWorkerAvailable(false);
     }
 
-    // Cleanup
     return () => {
       if (workerRef.current) {
+        // Cancel all pending requests
+        pendingRequests.current.forEach(request => {
+          request.reject(new Error('Worker terminated'));
+        });
+        pendingRequests.current.clear();
+
         workerRef.current.terminate();
         workerRef.current = null;
+        setIsWorkerAvailable(false);
       }
-      pendingTasks.current.clear();
-      setActiveTasks([]);
-      setIsWorkerAvailable(false);
     };
   }, []);
 
-  // Execute ML task
-  const executeTask = useCallback(async (task: Omit<MLWorkerTask, 'id'>): Promise<any> => {
-    if (!workerRef.current || !isWorkerAvailable) {
-      throw new Error('ML Worker not available');
-    }
-
-    const taskId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    return new Promise((resolve, reject) => {
-      // Store task callbacks
-      pendingTasks.current.set(taskId, {
-        resolve,
-        reject,
-        onProgress: task.onProgress
-      });
-
-      // Add to active tasks
-      setActiveTasks(prev => [...prev, taskId]);
-
-      // Send task to worker
-      workerRef.current!.postMessage({
-        id: taskId,
-        type: task.type,
-        payload: task.payload
-      });
-
-      logger.debug('ML Worker task started', { taskId, type: task.type });
-
-      // Set timeout for task (prevent hanging)
-      setTimeout(() => {
-        if (pendingTasks.current.has(taskId)) {
-          pendingTasks.current.delete(taskId);
-          setActiveTasks(prev => prev.filter(id => id !== taskId));
-          reject(new Error('ML Worker task timeout'));
-        }
-      }, 300000); // 5 minutes timeout
-    });
-  }, [isWorkerAvailable]);
-
-  // Cancel task
-  const cancelTask = useCallback((taskId: string) => {
-    if (!workerRef.current) return;
-
-    workerRef.current.postMessage({
-      id: taskId,
-      type: 'CANCEL',
-      payload: {}
-    });
-
-    // Clean up task
-    if (pendingTasks.current.has(taskId)) {
-      pendingTasks.current.delete(taskId);
-      setActiveTasks(prev => prev.filter(id => id !== taskId));
-    }
-
-    logger.debug('ML Worker task cancelled', { taskId });
+  // Generate unique request ID
+  const generateRequestId = useCallback(() => {
+    return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }, []);
 
+  // Send message to worker
+  const sendMessage = useCallback(
+    <T = any>(
+      type: MLWorkerMessage['type'],
+      payload: any,
+      onProgress?: (progress: number, status: string) => void
+    ): Promise<T> => {
+      return new Promise((resolve, reject) => {
+        if (!workerRef.current || !isWorkerAvailable) {
+          reject(new Error('ML Worker not available'));
+          return;
+        }
+
+        const id = generateRequestId();
+        
+        pendingRequests.current.set(id, {
+          resolve,
+          reject,
+          onProgress
+        });
+
+        const message: MLWorkerMessage = { id, type, payload };
+        
+        try {
+          workerRef.current.postMessage(message);
+        } catch (error) {
+          pendingRequests.current.delete(id);
+          reject(error);
+        }
+      });
+    },
+    [isWorkerAvailable, generateRequestId]
+  );
+
+  // Feature extraction
+  const extractFeatures = useCallback(
+    (candleData: any, config?: any, onProgress?: (progress: number, status: string) => void) => {
+      return sendMessage('FEATURE_EXTRACTION', { candleData, config }, onProgress);
+    },
+    [sendMessage]
+  );
+
+  // Generate prediction
+  const generatePrediction = useCallback(
+    (
+      candleData: any, 
+      historicalData?: any, 
+      config?: any, 
+      onProgress?: (progress: number, status: string) => void
+    ) => {
+      return sendMessage('PREDICTION', { candleData, historicalData, config }, onProgress);
+    },
+    [sendMessage]
+  );
+
+  // Train model
+  const trainModel = useCallback(
+    (
+      trainingData: any, 
+      config?: any, 
+      onProgress?: (progress: number, status: string) => void
+    ) => {
+      return sendMessage('TRAINING', { trainingData, config }, onProgress);
+    },
+    [sendMessage]
+  );
+
+  // Cancel computation
+  const cancelComputation = useCallback(
+    (requestId: string) => {
+      if (pendingRequests.current.has(requestId)) {
+        return sendMessage('CANCEL', { requestId });
+      }
+      return Promise.resolve();
+    },
+    [sendMessage]
+  );
+
+  // Cancel all computations
+  const cancelAllComputations = useCallback(() => {
+    const promises = Array.from(pendingRequests.current.keys()).map(id => 
+      cancelComputation(id)
+    );
+    return Promise.allSettled(promises);
+  }, [cancelComputation]);
+
   return {
-    executeTask,
-    cancelTask,
     isWorkerAvailable,
-    activeTasks
+    extractFeatures,
+    generatePrediction,
+    trainModel,
+    cancelComputation,
+    cancelAllComputations,
+    pendingRequestsCount: pendingRequests.current.size
   };
 };

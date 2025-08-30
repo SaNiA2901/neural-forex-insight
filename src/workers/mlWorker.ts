@@ -85,15 +85,12 @@ const handlePrediction = async (id: string, payload: any) => {
     reportProgress(id, 0, 'Preparing prediction data...');
     
     // Extract features
-    const features = await featureService.extractFeatures(candleData);
+    const { candleData: candles, currentIndex } = candleData;
+    const features = await featureService.extractFeatures(candles, currentIndex);
     reportProgress(id, 20, 'Features extracted, generating prediction...');
     
     // Generate prediction
-    const prediction = await predictionService.generatePrediction(features, {
-      ...config,
-      historicalData,
-      onProgress: (progress: number) => reportProgress(id, 20 + progress * 0.7, 'Computing prediction...')
-    });
+    const prediction = await predictionService.generatePrediction(candles, currentIndex, config);
     
     reportProgress(id, 100, 'Prediction completed');
     
@@ -122,7 +119,7 @@ const handleTraining = async (id: string, payload: any) => {
     
     reportProgress(id, 0, 'Initializing training...');
     
-    const result = await trainingService.trainModel(trainingData, {
+    const result = await trainingService.trainNetwork(trainingService.initializeNetwork(10, 20), trainingData, {
       ...config,
       onProgress: (progress: number, status: string) => reportProgress(id, progress, status),
       onEpochComplete: (epoch: number, loss: number) => {

@@ -6,7 +6,7 @@
 import { useReducer, useCallback, useEffect, useMemo } from 'react';
 import { TradingSession, CandleData } from '@/types/session';
 import { logger } from '@/utils/logger';
-import { errorHandler } from '@/utils/errorHandler';
+import { errorHandler, ErrorCategory } from '@/utils/errorHandler';
 
 // State types
 interface AppState {
@@ -251,7 +251,7 @@ export const useAppState = () => {
     setSessionError: useCallback((error: string | null) => {
       dispatch({ type: 'SET_SESSION_ERROR', payload: error });
       if (error) {
-        errorHandler.handleError(new Error(error), { context: 'session' });
+        errorHandler.handleError(new Error(error), ErrorCategory.BUSINESS_LOGIC, { context: 'session' });
       }
     }, []),
   }), []);
@@ -284,7 +284,7 @@ export const useAppState = () => {
     setCandlesError: useCallback((error: string | null) => {
       dispatch({ type: 'SET_CANDLES_ERROR', payload: error });
       if (error) {
-        errorHandler.handleError(new Error(error), { context: 'candles' });
+        errorHandler.handleError(new Error(error), ErrorCategory.DATA_PROCESSING, { context: 'candles' });
       }
     }, []),
   }), []);
@@ -302,7 +302,7 @@ export const useAppState = () => {
     setPredictionError: useCallback((error: string | null) => {
       dispatch({ type: 'SET_PREDICTION_ERROR', payload: error });
       if (error) {
-        errorHandler.handleError(new Error(error), { context: 'predictions' });
+        errorHandler.handleError(new Error(error), ErrorCategory.ML_PREDICTION, { context: 'predictions' });
       }
     }, []),
   }), []);

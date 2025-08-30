@@ -4,7 +4,7 @@
  */
 
 import { FeatureStore, FeatureVector } from '../../services/cache/FeatureStore';
-import { RedisClient } from '../../services/cache/RedisClient';
+import { redisClient } from '../../services/cache/RedisClient';
 
 // Mock Redis client
 const mockRedisClient = {
