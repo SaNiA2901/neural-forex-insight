@@ -16,6 +16,8 @@ import BinaryOptionsPredictor from "@/components/ui/BinaryOptionsPredictor";
 import RealPredictionDisplay from "@/components/ui/RealPredictionDisplay";
 import { InferenceDashboard } from "@/components/ui/monitoring/InferenceDashboard";
 import { OnnxPredictionPanel } from "@/components/ui/predictor/OnnxPredictionPanel";
+import EnhancedMarketDashboard from "@/components/ui/enhanced/EnhancedMarketDashboard";
+import EnhancedAnalyticsDashboard from "@/components/ui/enhanced/EnhancedAnalyticsDashboard";
 import { BarChart } from "lucide-react";
 
 const Index = () => {
@@ -126,6 +128,9 @@ const Index = () => {
                   <TabsTrigger value="analytics" className="data-[state=active]:bg-blue-600">
                     Аналитика
                   </TabsTrigger>
+                  <TabsTrigger value="enhanced" className="data-[state=active]:bg-blue-600">
+                    Enhanced Analytics
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="binary">
@@ -155,9 +160,20 @@ const Index = () => {
                 <TabsContent value="analytics">
                   <AdvancedAnalytics pair={selectedPair} timeframe={timeframe} />
                 </TabsContent>
+
+                <TabsContent value="enhanced">
+                  <EnhancedAnalyticsDashboard pair={selectedPair} timeframe={timeframe} />
+                </TabsContent>
               </Tabs>
             </ErrorBoundary>
           </div>
+        </div>
+
+        {/* Enhanced Market Dashboard в боковой панели */}
+        <div className="mt-6">
+          <ErrorBoundary>
+            <EnhancedMarketDashboard pair={selectedPair} timeframe={timeframe} />
+          </ErrorBoundary>
         </div>
       </div>
     </div>
