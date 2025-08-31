@@ -129,6 +129,7 @@ export class EnhancedRealTimeMarketService {
         low: Number(low.toFixed(2)),
         close: Number(close.toFixed(2)),
         volume: Number(volume.toFixed(2)),
+        candle_datetime: new Date().toISOString(),
         timestamp: new Date().toISOString(),
         created_at: new Date().toISOString()
       };

@@ -22,7 +22,7 @@ interface PerformanceMonitorProps {
 }
 
 const PerformanceMonitor = ({ isVisible = false }: PerformanceMonitorProps) => {
-  const { getPerformanceStats, clearCache } = usePerformance();
+  const { metrics, performanceScore, resetMetrics, forceGarbageCollection } = usePerformance('PerformanceMonitor');
   const { errors, clearErrors, getErrorStats } = useErrorHandler();
   const [stats, setStats] = useState<any[]>([]);
   const [errorStats, setErrorStats] = useState<any>(null);
@@ -32,7 +32,13 @@ const PerformanceMonitor = ({ isVisible = false }: PerformanceMonitorProps) => {
     if (!isVisible) return;
 
     const updateStats = () => {
-      setStats(getPerformanceStats());
+      if (metrics) {
+        setStats([{
+          operation: 'PerformanceMonitor',
+          time: metrics.averageRenderTime,
+          status: metrics.averageRenderTime < 16 ? 'fast' : metrics.averageRenderTime < 50 ? 'moderate' : 'slow'
+        }]);
+      }
       setErrorStats(getErrorStats());
       
       // Получаем приблизительное использование памяти
@@ -48,7 +54,7 @@ const PerformanceMonitor = ({ isVisible = false }: PerformanceMonitorProps) => {
     const interval = setInterval(updateStats, 2000);
 
     return () => clearInterval(interval);
-  }, [isVisible, getPerformanceStats, getErrorStats]);
+  }, [isVisible, metrics, getErrorStats]);
 
   if (!isVisible) return null;
 
@@ -81,11 +87,11 @@ const PerformanceMonitor = ({ isVisible = false }: PerformanceMonitorProps) => {
           <Button
             variant="outline"
             size="sm"
-            onClick={clearCache}
+            onClick={resetMetrics}
             className="bg-background/50"
           >
             <RefreshCw className="h-4 w-4 mr-2" />
-            Очистить кэш
+            Сбросить метрики
           </Button>
           <Button
             variant="outline"

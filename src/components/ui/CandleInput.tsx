@@ -27,16 +27,15 @@ const CandleInput = memo(({
   onCandleSaved
 }: CandleInputProps) => {
   const { saveCandle, deleteLastCandle } = useStateManager();
-  const { trackPerformance, memoizedValue } = usePerformance();
+  const { startMeasurement, endMeasurement } = usePerformance('CandleInput');
   const { safeExecute } = useErrorHandler();
   
-  const nextCandleIndex = memoizedValue(
+  const nextCandleIndex = useMemo(
     () => Math.max(currentSession.current_candle_index + 1, candles.length),
-    [currentSession.current_candle_index, candles.length],
-    'nextCandleIndex'
+    [currentSession.current_candle_index, candles.length]
   );
 
-  const nextCandleTime = memoizedValue(() => {
+  const nextCandleTime = useMemo(() => {
     try {
       return calculateCandleDateTime(
         currentSession.start_date,
@@ -48,7 +47,7 @@ const CandleInput = memo(({
       console.error('Error calculating next candle time:', error);
       return '';
     }
-  }, [currentSession, nextCandleIndex], 'nextCandleTime');
+  }, [currentSession, nextCandleIndex]);
 
   const {
     formData,
@@ -63,13 +62,16 @@ const CandleInput = memo(({
   } = useCandleInputLogic({
     currentSession,
     onCandleSaved: async (candleData) => {
-      return trackPerformance('saveCandleOperation', async () => {
+      startMeasurement();
+      try {
         await safeExecute(
           () => onCandleSaved(candleData),
           undefined,
           'Обработка сохраненной свечи'
         );
-      });
+      } finally {
+        endMeasurement();
+      }
     }
   });
 

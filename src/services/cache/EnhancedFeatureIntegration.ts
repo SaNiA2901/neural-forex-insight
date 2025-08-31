@@ -281,15 +281,21 @@ export class EnhancedFeatureIntegration {
         s: Number(indicators.macd.signal?.toFixed(4) || 0),
         h: Number(indicators.macd.histogram?.toFixed(4) || 0)
       } : null,
-      m: indicators.macd ? {
-        l: Number(indicators.macd.line?.toFixed(4) || 0),
-        s: Number(indicators.macd.signal?.toFixed(4) || 0),
-        h: Number(indicators.macd.histogram?.toFixed(4) || 0)
+      bb: indicators.bollingerBands ? {
+        u: Number(indicators.bollingerBands.upper?.toFixed(4) || 0),
+        m: Number(indicators.bollingerBands.middle?.toFixed(4) || 0),
+        l: Number(indicators.bollingerBands.lower?.toFixed(4) || 0)
+      } : null,
+      e: indicators.ema ? {
+        e12: Number(indicators.ema.ema12?.toFixed(4) || 0),
+        e26: Number(indicators.ema.ema26?.toFixed(4) || 0)
       } : null,
       st: indicators.stochastic ? {
         k: Number(indicators.stochastic.k?.toFixed(2) || 0),
         d: Number(indicators.stochastic.d?.toFixed(2) || 0)
-      } : null
+      } : null,
+      atr: Number(indicators.atr?.toFixed(4) || 0),
+      adx: Number(indicators.adx?.toFixed(4) || 0)
     };
   }
 
@@ -301,10 +307,21 @@ export class EnhancedFeatureIntegration {
         signal: data.m.s || 0,
         histogram: data.m.h || 0
       } : { line: 0, signal: 0, histogram: 0 },
+      bollingerBands: data.bb ? {
+        upper: data.bb.u || 0,
+        middle: data.bb.m || 0,
+        lower: data.bb.l || 0
+      } : { upper: 0, middle: 0, lower: 0 },
+      ema: data.e ? {
+        ema12: data.e.e12 || 0,
+        ema26: data.e.e26 || 0
+      } : { ema12: 0, ema26: 0 },
       stochastic: data.st ? {
         k: data.st.k || 0,
         d: data.st.d || 0
-      } : { k: 0, d: 0 }
+      } : { k: 0, d: 0 },
+      atr: data.atr || 0,
+      adx: data.adx || 0
     };
   }
 
