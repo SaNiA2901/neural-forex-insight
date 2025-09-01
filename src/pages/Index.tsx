@@ -25,11 +25,28 @@ import { BarChart } from "lucide-react";
 const Index = () => {
   const [selectedPair, setSelectedPair] = useState("EUR/USD");
   const [timeframe, setTimeframe] = useState("1h");
-  const isPreview = isPreviewEnvironment();
 
-  // Return optimized dashboard for preview environment
+  // Безопасная проверка preview окружения с обработкой ошибок
+  let isPreview = false;
+  try {
+    isPreview = isPreviewEnvironment();
+  } catch (error) {
+    console.error("Ошибка проверки preview окружения:", error);
+    isPreview = false;
+  }
+
+  // Безопасный возврат оптимизированного dashboard для preview
   if (isPreview) {
-    return <PreviewOptimizedDashboard />;
+    try {
+      return (
+        <ErrorBoundary>
+          <PreviewOptimizedDashboard />
+        </ErrorBoundary>
+      );
+    } catch (error) {
+      console.error("Ошибка загрузки PreviewOptimizedDashboard:", error);
+      // Если есть ошибка с preview компонентом, продолжаем с основным интерфейсом
+    }
   }
 
   const currencyPairs = [
