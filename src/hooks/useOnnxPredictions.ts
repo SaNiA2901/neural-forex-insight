@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { onnxInferenceService } from '@/services/ml/OnnxInferenceService';
 import { CandleData } from '@/types/session';
 import { PredictionResult } from '@/types/trading';
+import { isPreviewEnvironment } from '@/utils/previewOptimization';
 
 interface PredictionRequest {
   symbol: string;
@@ -68,10 +69,23 @@ export const useOnnxPredictions = (options: UseOnnxPredictionsOptions = {}) => {
 
   const initializeWebSocket = () => {
     try {
+      // Skip WebSocket in preview environment
+      if (isPreviewEnvironment()) {
+        console.log('WebSocket disabled in preview environment');
+        return;
+      }
+      
       // In a real implementation, this would connect to a WebSocket endpoint
       const ws = new WebSocket('ws://localhost:3001/predictions');
       
+      // Add connection timeout
+      const connectionTimeout = setTimeout(() => {
+        console.warn('WebSocket connection timeout');
+        ws.close();
+      }, 3000);
+
       ws.onopen = () => {
+        clearTimeout(connectionTimeout);
         console.log('WebSocket connected for streaming predictions');
       };
 
@@ -85,17 +99,19 @@ export const useOnnxPredictions = (options: UseOnnxPredictionsOptions = {}) => {
       };
 
       ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        clearTimeout(connectionTimeout);
+        console.warn('WebSocket error (expected in preview):', error);
       };
 
       ws.onclose = () => {
+        clearTimeout(connectionTimeout);
         console.log('WebSocket connection closed');
         websocketRef.current = null;
       };
 
       websocketRef.current = ws;
     } catch (error) {
-      console.error('Failed to initialize WebSocket:', error);
+      console.warn('Failed to initialize WebSocket (expected in preview):', error);
     }
   };
 

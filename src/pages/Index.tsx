@@ -18,11 +18,19 @@ import { InferenceDashboard } from "@/components/ui/monitoring/InferenceDashboar
 import { OnnxPredictionPanel } from "@/components/ui/predictor/OnnxPredictionPanel";
 import EnhancedMarketDashboard from "@/components/ui/enhanced/EnhancedMarketDashboard";
 import EnhancedAnalyticsDashboard from "@/components/ui/enhanced/EnhancedAnalyticsDashboard";
+import { PreviewOptimizedDashboard } from '@/components/ui/enhanced/PreviewOptimizedDashboard';
+import { isPreviewEnvironment } from '@/utils/previewOptimization';
 import { BarChart } from "lucide-react";
 
 const Index = () => {
   const [selectedPair, setSelectedPair] = useState("EUR/USD");
   const [timeframe, setTimeframe] = useState("1h");
+  const isPreview = isPreviewEnvironment();
+
+  // Return optimized dashboard for preview environment
+  if (isPreview) {
+    return <PreviewOptimizedDashboard />;
+  }
 
   const currencyPairs = [
     "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF", 

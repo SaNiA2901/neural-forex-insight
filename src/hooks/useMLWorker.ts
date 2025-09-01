@@ -6,6 +6,7 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { errorHandler, ErrorCategory } from '@/utils/errorHandler';
 import { logger } from '@/utils/logger';
+import { isPreviewEnvironment } from '@/utils/previewOptimization';
 
 interface MLWorkerMessage {
   id: string;
@@ -30,14 +31,30 @@ export const useMLWorker = () => {
   const pendingRequests = useRef<Map<string, PendingRequest>>(new Map());
   const [isWorkerAvailable, setIsWorkerAvailable] = useState(false);
 
-  // Initialize worker
+  // Initialize worker with timeout and fallback
   useEffect(() => {
+    let initTimeout: NodeJS.Timeout;
+    
+    // Skip worker in preview environment for performance
+    if (isPreviewEnvironment()) {
+      logger.info('ML Worker disabled in preview environment');
+      setIsWorkerAvailable(false);
+      return;
+    }
+    
     try {
+      // Add timeout for worker initialization
+      initTimeout = setTimeout(() => {
+        logger.warn('ML Worker initialization timeout, using fallback');
+        setIsWorkerAvailable(false);
+      }, 5000);
+      
       workerRef.current = new Worker(
         new URL('../workers/mlWorker.ts', import.meta.url),
         { type: 'module' }
       );
-
+      
+      clearTimeout(initTimeout);
       setIsWorkerAvailable(true);
       logger.info('ML Worker initialized successfully');
 

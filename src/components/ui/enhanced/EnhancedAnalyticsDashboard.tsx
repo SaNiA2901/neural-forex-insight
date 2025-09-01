@@ -23,6 +23,7 @@ import {
 import { enhancedFeatureIntegration, EnhancedFeatureVector } from '@/services/cache/EnhancedFeatureIntegration';
 import { useAppState } from '@/hooks/useAppState';
 import { useMLWorker } from '@/hooks/useMLWorker';
+import { isPreviewEnvironment } from '@/utils/previewOptimization';
 import { usePerformance } from '@/hooks/usePerformance';
 import { CandleData } from '@/types/session';
 
@@ -36,6 +37,7 @@ const EnhancedAnalyticsDashboard = ({ pair, timeframe }: EnhancedAnalyticsDashbo
   const currentSession = appState.state.currentSession;
   const candles = appState.getCurrentSessionCandles();
   const { isWorkerAvailable, generatePrediction, extractFeatures } = useMLWorker();
+  const isPreview = isPreviewEnvironment();
   const { metrics, performanceScore, exportMetrics } = usePerformance('EnhancedAnalytics');
 
   const [analyticsData, setAnalyticsData] = useState<{
@@ -189,7 +191,7 @@ const EnhancedAnalyticsDashboard = ({ pair, timeframe }: EnhancedAnalyticsDashbo
           <div className="flex items-center space-x-2">
             <Button
               onClick={runEnhancedAnalysis}
-              disabled={!isWorkerAvailable || candles.length < 10}
+              disabled={(!isWorkerAvailable && !isPreview) || candles.length < 10}
               size="sm"
               variant="outline"
             >

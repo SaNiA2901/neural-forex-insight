@@ -7,6 +7,7 @@ import { CandleData } from '@/types/session';
 import { supabase } from '@/integration/supabase/client';
 import { logger } from '@/utils/logger';
 import { errorHandler, ErrorCategory } from '@/utils/errorHandler';
+import { isPreviewEnvironment } from '@/utils/previewOptimization';
 
 export interface EnhancedMarketConfig {
   symbol: string;
@@ -187,6 +188,12 @@ export class EnhancedRealTimeMarketService {
     try {
       const buffer = this.dataBuffer.get(symbol);
       if (!buffer || buffer.length === 0) return;
+
+      // Skip database operations in preview environment
+      if (isPreviewEnvironment()) {
+        logger.debug('Database persistence skipped in preview environment');
+        return;
+      }
 
       if (supabase) {
         await supabase

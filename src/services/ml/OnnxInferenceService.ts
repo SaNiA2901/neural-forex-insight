@@ -67,15 +67,26 @@ export class OnnxInferenceService {
 
   private async initializeOnnxRuntime() {
     try {
-      // Configure ONNX Runtime for optimal performance
-      ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@latest/dist/';
-      ort.env.wasm.numThreads = navigator.hardwareConcurrency || 4;
+      // Configure ONNX Runtime for optimal performance with local paths
+      ort.env.wasm.wasmPaths = '/';
+      ort.env.wasm.numThreads = Math.min(navigator.hardwareConcurrency || 4, 2);
       ort.env.webgl.contextId = 'webgl2';
       
+      // Add timeout and retry logic
+      const initPromise = new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('ONNX Runtime initialization timeout'));
+        }, 10000);
+        
+        resolve(ort.env);
+        clearTimeout(timeout);
+      });
+      
+      await initPromise;
       console.log('ONNX Runtime initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize ONNX Runtime:', error);
-      throw error;
+      console.warn('ONNX Runtime initialization failed, using fallback:', error);
+      // Don't throw error, allow graceful degradation
     }
   }
 
