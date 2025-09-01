@@ -82,14 +82,14 @@ export class NeuralPredictionService {
       this.normalize(current.open / current.close, 0.95, 1.05),
       this.normalize(current.high / current.close, 0.98, 1.02),
       this.normalize(current.low / current.close, 0.98, 1.02),
-      this.normalize(bodySize / priceRange, 0, 1),
+      this.normalize(bodySize / (priceRange || 1), 0, 1), // Исправлено деление на ноль
       this.normalize((current.close - current.open) / current.close, -0.05, 0.05)
     );
 
     // Объемные признаки
     const avgVolume = recentCandles.reduce((sum, c) => sum + c.volume, 0) / recentCandles.length;
     features.push(
-      this.normalize(current.volume / avgVolume, 0.5, 2.0),
+      this.normalize(current.volume / (avgVolume || 1), 0.5, 2.0), // Исправлено деление на ноль
       this.normalize(Math.log(current.volume + 1), 0, 20)
     );
 
@@ -100,12 +100,12 @@ export class NeuralPredictionService {
     
     features.push(
       this.normalize(rsi, 0, 100),
-      this.normalize(current.close / sma5, 0.95, 1.05),
-      this.normalize(current.close / ema3, 0.98, 1.02)
+      this.normalize(current.close / (sma5 || current.close), 0.95, 1.05), // Исправлено деление на ноль
+      this.normalize(current.close / (ema3 || current.close), 0.98, 1.02) // Исправлено деление на ноль
     );
 
     // Паттерны и моментум
-    const momentum = recentCandles.length > 1 ? 
+    const momentum = recentCandles.length > 1 && recentCandles[0].close > 0 ? 
       (current.close - recentCandles[0].close) / recentCandles[0].close : 0;
     
     features.push(
@@ -146,6 +146,7 @@ export class NeuralPredictionService {
 
   private normalize(value: number, min: number, max: number): number {
     if (max === min) return 0;
+    if (!isFinite(value)) return 0; // Исправлено: проверка на NaN и Infinity
     return Math.max(-1, Math.min(1, (value - min) / (max - min) * 2 - 1));
   }
 
@@ -170,6 +171,7 @@ export class NeuralPredictionService {
   }
 
   private calculateSMA(candles: CandleData[], period: number): number {
+    if (candles.length === 0) return 0; // Исправлено: проверка на пустой массив
     const relevantCandles = candles.slice(-period);
     const sum = relevantCandles.reduce((acc, candle) => acc + candle.close, 0);
     return sum / relevantCandles.length;
@@ -193,9 +195,13 @@ export class NeuralPredictionService {
     
     const returns = [];
     for (let i = 1; i < candles.length; i++) {
-      const returnRate = (candles[i].close - candles[i - 1].close) / candles[i - 1].close;
-      returns.push(returnRate);
+      if (candles[i - 1].close > 0) { // Исправлено: проверка деления на ноль
+        const returnRate = (candles[i].close - candles[i - 1].close) / candles[i - 1].close;
+        returns.push(returnRate);
+      }
     }
+    
+    if (returns.length === 0) return 0; // Исправлено: проверка пустого массива
     
     const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
     const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / returns.length;
@@ -208,6 +214,9 @@ export class NeuralPredictionService {
     
     const firstPrice = candles[0].close;
     const lastPrice = candles[candles.length - 1].close;
+    
+    if (firstPrice === 0) return 0; // Исправлено: проверка деления на ноль
+    
     const totalChange = (lastPrice - firstPrice) / firstPrice;
     
     // Считаем монотонность тренда
@@ -224,6 +233,8 @@ export class NeuralPredictionService {
   }
 
   private sigmoid(x: number): number {
+    if (x > 500) return 1; // Исправлено: предотвращение переполнения
+    if (x < -500) return 0;
     return 1 / (1 + Math.exp(-x));
   }
 
@@ -350,7 +361,7 @@ export class NeuralPredictionService {
     const trend = features[15] || 0;
     
     if (volatility > 0.6) return 'Высокая волатильность';
-    if (Math.abs(trend) > 0.7) return Math.abs(trend) > 0 ? 'Сильный тренд' : 'Сильный нисходящий тренд';
+    if (Math.abs(trend) > 0.7) return trend > 0 ? 'Сильный тренд' : 'Сильный нисходящий тренд'; // Исправлена логика
     if (volatility < 0.2) return 'Низкая волатильность';
     
     return 'Нормальные условия';
