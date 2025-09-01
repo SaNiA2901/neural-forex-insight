@@ -2,6 +2,8 @@ import { CandleData } from '@/types/session';
 import { PredictionResult, PredictionConfig } from '@/types/trading';
 import { TechnicalIndicatorService } from '../indicators/TechnicalIndicators';
 import { PatternAnalysisService } from '../patterns/PatternAnalysis';
+import { secureRandom, secureShuffleArray } from '@/utils/secureCrypto';
+import { logger } from '@/utils/logger';
 
 interface NetworkWeights {
   input_hidden: number[][];
@@ -51,8 +53,7 @@ export class RealMLService {
   }
 
   private initializeNetwork(): void {
-    // SECURITY FIX: Import secure random
-    const { secureRandom } = require('@/utils/secureCrypto');
+    // SECURITY FIX: Use imported secure random
     
     // Xavier/Glorot инициализация с безопасным RNG
     const initWeight = (fanIn: number, fanOut: number) => {
@@ -222,7 +223,6 @@ export class RealMLService {
     
     for (let epoch = 0; epoch < epochs; epoch++) {
       // SECURITY FIX: Безопасное перемешивание данных
-      const { secureShuffleArray } = require('@/utils/secureCrypto');
       const shuffled = secureShuffleArray([...this.trainingData]);
       
       for (let i = 0; i < shuffled.length; i += batchSize) {
@@ -234,7 +234,6 @@ export class RealMLService {
     this.lastTrainingTime = Date.now();
     this.calculateAccuracy();
     // PRODUCTION FIX: Replace console.log with structured logging
-    const { logger } = require('@/utils/logger');
     logger.mlTraining(this.modelAccuracy, this.trainingData.length, Date.now() - startTime);
   }
 
