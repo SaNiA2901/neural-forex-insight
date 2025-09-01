@@ -38,7 +38,21 @@ export const useOnnxPredictions = (options: UseOnnxPredictionsOptions = {}) => {
   const [predictions, setPredictions] = useState<Map<string, PredictionResponse>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [metrics, setMetrics] = useState(onnxInferenceService.getMetrics());
+  const [metrics, setMetrics] = useState(() => {
+    try {
+      return onnxInferenceService.getMetrics();
+    } catch (error) {
+      console.warn('Failed to get initial metrics:', error);
+      return {
+        totalPredictions: 0,
+        averageLatency: 0,
+        successRate: 0,
+        modelsLoaded: 0,
+        memoryUsage: 0,
+        queueLength: 0
+      };
+    }
+  });
 
   const requestQueue = useRef<PredictionRequest[]>([]);
   const activeRequests = useRef<Set<string>>(new Set());
@@ -47,7 +61,11 @@ export const useOnnxPredictions = (options: UseOnnxPredictionsOptions = {}) => {
   // Update metrics periodically
   useEffect(() => {
     const interval = setInterval(() => {
-      setMetrics(onnxInferenceService.getMetrics());
+      try {
+        setMetrics(onnxInferenceService.getMetrics());
+      } catch (error) {
+        console.warn('Failed to update metrics:', error);
+      }
     }, 1000);
 
     return () => clearInterval(interval);
@@ -55,7 +73,7 @@ export const useOnnxPredictions = (options: UseOnnxPredictionsOptions = {}) => {
 
   // Initialize WebSocket for streaming if enabled
   useEffect(() => {
-    if (enableStreaming && !websocketRef.current) {
+    if (enableStreaming && !websocketRef.current && !isPreviewEnvironment()) {
       initializeWebSocket();
     }
 
@@ -75,13 +93,21 @@ export const useOnnxPredictions = (options: UseOnnxPredictionsOptions = {}) => {
         return;
       }
       
+      // Check if WebSocket is available
+      if (typeof WebSocket === 'undefined') {
+        console.warn('WebSocket not available in this environment');
+        return;
+      }
+      
       // In a real implementation, this would connect to a WebSocket endpoint
       const ws = new WebSocket('ws://localhost:3001/predictions');
       
       // Add connection timeout
       const connectionTimeout = setTimeout(() => {
         console.warn('WebSocket connection timeout');
-        ws.close();
+        if (ws.readyState !== WebSocket.OPEN) {
+          ws.close();
+        }
       }, 3000);
 
       ws.onopen = () => {
@@ -120,7 +146,7 @@ export const useOnnxPredictions = (options: UseOnnxPredictionsOptions = {}) => {
     candles: CandleData[],
     modelNameOverride?: string
   ): Promise<PredictionResponse | null> => {
-    if (candles.length < 20) {
+    if (!candles || candles.length < 20) {
       setError('Insufficient candle data for prediction');
       return null;
     }
@@ -156,14 +182,26 @@ export const useOnnxPredictions = (options: UseOnnxPredictionsOptions = {}) => {
     requests: Array<{ symbol: string; candles: CandleData[] }>,
     modelNameOverride?: string
   ): Promise<PredictionResponse[]> => {
+    if (!requests || requests.length === 0) {
+      return [];
+    }
+
     const useModel = modelNameOverride || modelName;
 
     try {
       setError(null);
       setIsLoading(true);
 
+      // Filter out invalid requests
+      const validRequests = requests.filter(req => req.candles && req.candles.length >= 20);
+
+      if (validRequests.length === 0) {
+        setError('No valid requests with sufficient candle data');
+        return [];
+      }
+
       // Extract features for all requests
-      const featuresPromises = requests.map(async (req) => ({
+      const featuresPromises = validRequests.map(async (req) => ({
         symbol: req.symbol,
         features: await onnxInferenceService.extractFeaturesFromCandles(req.candles)
       }));
@@ -195,6 +233,11 @@ export const useOnnxPredictions = (options: UseOnnxPredictionsOptions = {}) => {
   }, [modelName]);
 
   const queuePrediction = useCallback((request: PredictionRequest) => {
+    if (!request || !request.symbol || !request.candles) {
+      console.warn('Invalid prediction request');
+      return;
+    }
+    
     requestQueue.current.push(request);
     processQueue();
   }, []);
@@ -223,11 +266,17 @@ export const useOnnxPredictions = (options: UseOnnxPredictionsOptions = {}) => {
   }, [makeBatchPredictions, batchSize, maxConcurrency]);
 
   const streamPrediction = useCallback((symbol: string, candles: CandleData[]) => {
-    if (!enableStreaming || !websocketRef.current) {
+    // Always fallback to regular prediction in preview environment
+    if (!enableStreaming || !websocketRef.current || isPreviewEnvironment()) {
       return makePrediction(symbol, candles);
     }
 
     try {
+      if (websocketRef.current.readyState !== WebSocket.OPEN) {
+        console.warn('WebSocket not connected, falling back to regular prediction');
+        return makePrediction(symbol, candles);
+      }
+
       const message = JSON.stringify({
         type: 'predict',
         symbol,
@@ -265,7 +314,19 @@ export const useOnnxPredictions = (options: UseOnnxPredictionsOptions = {}) => {
   }, []);
 
   const getModelInfo = useCallback(() => {
-    return onnxInferenceService.getModelInfo();
+    try {
+      return onnxInferenceService.getModelInfo();
+    } catch (error) {
+      console.warn('Failed to get model info:', error);
+      return {
+        modelName: 'unknown',
+        version: 'unknown',
+        inputShape: [],
+        outputShape: [],
+        modelSize: 0,
+        isLoaded: false
+      };
+    }
   }, []);
 
   return {
