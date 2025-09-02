@@ -3,12 +3,12 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
 // SECURITY FIX: Use environment variables instead of hardcoded keys
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://cqetvuyuqkanyeiskgwn.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxZXR2dXl1cWthbnllaXNrZ3duIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxNDg2MDEsImV4cCI6MjA2MzcyNDYwMX0.fPgS4jamaEGmDF7RUdYmjSv8FVfCNE_dylTOEvSwQhM";
+const SUPABASE_URL = "https://yhthxtppnnumtbfucbpm.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlodGh4dHBwbm51bXRiZnVjYnBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxODc3NDIsImV4cCI6MjA3MTc2Mzc0Mn0.QF7rYW1Uemym6WOW-EMid-rHjO23iRy53lORYSPyFX4";
 
 // Validate required environment variables
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  throw new Error('Missing required Supabase environment variables. Please check your .env file.');
+  throw new Error('Missing required Supabase configuration. Please check your project setup.');
 }
 
 // Import the supabase client like this:

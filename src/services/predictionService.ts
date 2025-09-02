@@ -37,9 +37,6 @@ export const predictionService = {
       const mlPrediction = await realMLService.generatePrediction(candles, currentIndex, config);
       
       if (mlPrediction) {
-        // PRODUCTION FIX: Replace console.log with structured logging
-        const { logger } = require('@/utils/logger');
-        logger.mlPrediction(mlPrediction.direction, mlPrediction.probability, mlPrediction.confidence);
         return mlPrediction;
       }
       
@@ -93,9 +90,7 @@ export const predictionService = {
       };
       
     } catch (error) {
-      // PRODUCTION FIX: Replace console.error with error handler
-      const { errorHandler, ErrorCategory } = require('@/utils/errorHandler');
-      errorHandler.handleError(error as Error, ErrorCategory.ML_PREDICTION, { context: 'advanced_prediction' });
+      console.error('Prediction generation error:', error);
       return null;
     }
   },
