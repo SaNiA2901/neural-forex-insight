@@ -165,7 +165,7 @@ export const OnnxPredictionPanel: React.FC<OnnxPredictionPanelProps> = ({
             <label className="text-sm font-medium">Active Model</label>
             <div className="flex items-center gap-2">
               <Badge variant="outline">{selectedModel}</Badge>
-              {modelInfo.find(m => m.name === selectedModel)?.loaded && (
+              {Array.isArray(modelInfo) && modelInfo.find(m => m.name === selectedModel)?.loaded && (
                 <Badge variant="default">Loaded</Badge>
               )}
             </div>
@@ -320,7 +320,7 @@ export const OnnxPredictionPanel: React.FC<OnnxPredictionPanelProps> = ({
                 <TrendingUp className="h-3 w-3" />
                 <span className="font-medium">Requests</span>
               </div>
-              <span>{metrics.totalRequests}</span>
+              <span>{'totalRequests' in metrics ? metrics.totalRequests : (metrics as any).totalPredictions || 0}</span>
             </div>
             
             <div className="space-y-1">
@@ -336,7 +336,7 @@ export const OnnxPredictionPanel: React.FC<OnnxPredictionPanelProps> = ({
                 <CheckCircle className="h-3 w-3" />
                 <span className="font-medium">Success Rate</span>
               </div>
-              <span>{((1 - metrics.errorRate) * 100).toFixed(1)}%</span>
+              <span>{('successRate' in metrics ? (metrics as any).successRate * 100 : (1 - metrics.errorRate) * 100).toFixed(1)}%</span>
             </div>
             
             <div className="space-y-1">
@@ -344,7 +344,7 @@ export const OnnxPredictionPanel: React.FC<OnnxPredictionPanelProps> = ({
                 <Brain className="h-3 w-3" />
                 <span className="font-medium">Throughput</span>
               </div>
-              <span>{metrics.throughput.toFixed(1)}/s</span>
+              <span>{('throughput' in metrics ? metrics.throughput : 0).toFixed(1)}/s</span>
             </div>
           </div>
         </CardContent>
