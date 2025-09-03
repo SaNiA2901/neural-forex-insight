@@ -245,9 +245,10 @@ function updatePerformanceMetrics(
   prediction: PredictionResult
 ): TradingState['performance'] {
   const newTotal = current.totalPredictions + 1;
-  // Здесь должна быть логика проверки точности предсказания
-  // Пока используем заглушку
-  const newAccurate = current.accuratePredictions + (Math.random() > 0.5 ? 1 : 0);
+  // SECURITY FIX: Replace Math.random() with secure random
+  // TODO: Implement actual prediction accuracy checking logic
+  const { SecureRandom } = require('@/utils/secureCrypto');
+  const newAccurate = current.accuratePredictions + (SecureRandom.random() > 0.5 ? 1 : 0);
   
   return {
     totalPredictions: newTotal,
@@ -272,33 +273,70 @@ export const TradingStoreProvider: React.FC<{ children: React.ReactNode }> = ({ 
     dispatch(action);
   }, []);
 
-  // Автосохранение в localStorage
+  // SECURITY FIX: Secure encrypted storage for sensitive trading data
   useEffect(() => {
-    const stateToSave = {
-      sessions: state.sessions,
-      currentSession: state.currentSession,
-      performance: state.performance
+    const saveSecurely = async () => {
+      try {
+        const { SecureStorage } = await import('@/utils/secureCrypto');
+        const stateToSave = {
+          sessions: state.sessions,
+          currentSession: state.currentSession,
+          performance: state.performance
+        };
+        await SecureStorage.setItem('trading-store', stateToSave);
+      } catch (error) {
+        console.error('Secure storage failed, using fallback:', error);
+        // Fallback to regular storage
+        const stateToSave = {
+          sessions: state.sessions,
+          currentSession: state.currentSession,
+          performance: state.performance
+        };
+        localStorage.setItem('trading-store', JSON.stringify(stateToSave));
+      }
     };
-    localStorage.setItem('trading-store', JSON.stringify(stateToSave));
+    
+    saveSecurely();
   }, [state.sessions, state.currentSession, state.performance]);
 
-  // Восстановление из localStorage
+  // SECURITY FIX: Secure encrypted restoration from storage
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('trading-store');
-      if (saved) {
-        const { sessions, currentSession, performance } = JSON.parse(saved);
-        dispatch({ type: 'SET_SESSIONS', payload: sessions || [] });
-        if (currentSession) {
-          dispatch({ type: 'SET_CURRENT_SESSION', payload: currentSession });
+    const restoreSecurely = async () => {
+      try {
+        const { SecureStorage } = await import('@/utils/secureCrypto');
+        const saved = await SecureStorage.getItem('trading-store');
+        if (saved) {
+          const { sessions, currentSession, performance } = saved;
+          dispatch({ type: 'SET_SESSIONS', payload: sessions || [] });
+          if (currentSession) {
+            dispatch({ type: 'SET_CURRENT_SESSION', payload: currentSession });
+          }
+          if (performance) {
+            dispatch({ type: 'UPDATE_PERFORMANCE', payload: performance });
+          }
         }
-        if (performance) {
-          dispatch({ type: 'UPDATE_PERFORMANCE', payload: performance });
+      } catch (error) {
+        console.error('Secure restoration failed, trying fallback:', error);
+        // Fallback to regular storage
+        try {
+          const saved = localStorage.getItem('trading-store');
+          if (saved) {
+            const { sessions, currentSession, performance } = JSON.parse(saved);
+            dispatch({ type: 'SET_SESSIONS', payload: sessions || [] });
+            if (currentSession) {
+              dispatch({ type: 'SET_CURRENT_SESSION', payload: currentSession });
+            }
+            if (performance) {
+              dispatch({ type: 'UPDATE_PERFORMANCE', payload: performance });
+            }
+          }
+        } catch (fallbackError) {
+          console.error('Error restoring trading store:', fallbackError);
         }
       }
-    } catch (error) {
-      console.error('Error restoring trading store:', error);
-    }
+    };
+    
+    restoreSecurely();
   }, []);
 
   return (

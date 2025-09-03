@@ -71,7 +71,7 @@ export class NetworkTrainingService {
       // Xavier/Glorot initialization with secure random
       const initWeight = (fanIn: number, fanOut: number) => {
         const limit = Math.sqrt(6 / (fanIn + fanOut));
-        return (secureCrypto.secureRandom() * 2 - 1) * limit;
+        return (secureCrypto.secureRandom.random() * 2 - 1) * limit;
       };
 
       const weights: NetworkWeights = {
@@ -309,7 +309,7 @@ export class NetworkTrainingService {
       let activation = this.relu(sum);
       
       // Apply dropout during training
-      if (dropoutRate > 0 && secureCrypto.secureRandom() < dropoutRate) {
+      if (dropoutRate > 0 && secureCrypto.secureRandom.random() < dropoutRate) {
         activation = 0;
       } else if (dropoutRate > 0) {
         activation /= (1 - dropoutRate); // Scale up remaining neurons

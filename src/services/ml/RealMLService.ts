@@ -58,7 +58,7 @@ export class RealMLService {
     // Xavier/Glorot инициализация с безопасным RNG
     const initWeight = (fanIn: number, fanOut: number) => {
       const limit = Math.sqrt(6 / (fanIn + fanOut));
-      return (secureRandom() * 2 - 1) * limit;
+      return (secureRandom.random() * 2 - 1) * limit;
     };
 
     this.weights = {
