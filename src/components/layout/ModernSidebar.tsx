@@ -27,54 +27,87 @@ import {
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
-const navigationItems = [
+const onlineModeItems = [
   {
-    title: "Dashboard",
+    title: "Онлайн режим",
     url: "/",
-    icon: BarChart3,
-    description: "Главная панель"
-  },
-  {
-    title: "Live Trading",
-    url: "/trading",
     icon: TrendingUp,
-    description: "Реальная торговля"
+    description: "Работа с поставщиками котировок"
   },
   {
-    title: "AI Predictions",
-    url: "/predictions",
-    icon: Brain,
-    description: "ИИ прогнозы"
+    title: "Графики",
+    url: "/online/charts",
+    icon: BarChart3,
+    description: "Графики валютных пар"
   },
   {
-    title: "Technical Analysis",
-    url: "/analysis",
-    icon: Activity,
-    description: "Технический анализ"
-  },
-  {
-    title: "Market Signals",
-    url: "/signals",
-    icon: Zap,
-    description: "Торговые сигналы"
-  },
-  {
-    title: "Portfolio",
-    url: "/portfolio",
+    title: "Аналитика",
+    url: "/online/analytics",
     icon: PieChart,
-    description: "Портфель"
+    description: "Аналитические данные"
   },
   {
-    title: "Strategy",
-    url: "/strategy",
+    title: "Индикаторы",
+    url: "/online/indicators",
+    icon: Activity,
+    description: "Технические индикаторы"
+  },
+  {
+    title: "Паттерны",
+    url: "/online/patterns",
     icon: Target,
-    description: "Стратегии"
+    description: "Анализ паттернов"
   },
   {
-    title: "Analytics",
-    url: "/analytics",
+    title: "ИИ Прогнозы",
+    url: "/online/predictions",
+    icon: Brain,
+    description: "Прогнозы нейронных сетей"
+  },
+  {
+    title: "Источники данных",
+    url: "/online/sources",
+    icon: Zap,
+    description: "Настройка поставщиков"
+  }
+];
+
+const manualModeItems = [
+  {
+    title: "Ручной режим",
+    url: "/manual",
     icon: LineChart,
-    description: "Аналитика"
+    description: "Работа с сессиями"
+  },
+  {
+    title: "Графики",
+    url: "/manual/charts",
+    icon: BarChart3,
+    description: "Графики сессий"
+  },
+  {
+    title: "Аналитика",
+    url: "/manual/analytics",
+    icon: PieChart,
+    description: "Анализ сессий"
+  },
+  {
+    title: "Индикаторы",
+    url: "/manual/indicators",
+    icon: Activity,
+    description: "Технические индикаторы"
+  },
+  {
+    title: "Паттерны",
+    url: "/manual/patterns",
+    icon: Target,
+    description: "Анализ паттернов"
+  },
+  {
+    title: "ИИ Прогнозы",
+    url: "/manual/predictions",
+    icon: Brain,
+    description: "Модели прогнозирования"
   }
 ];
 
@@ -94,7 +127,10 @@ export function ModernSidebar() {
   const collapsed = state === "collapsed";
 
   const isActive = (path: string) => currentPath === path;
-  const isMainExpanded = navigationItems.some((item) => isActive(item.url));
+  const isOnlineMode = currentPath.startsWith('/online') || currentPath === '/';
+  const isManualMode = currentPath.startsWith('/manual');
+  const isOnlineExpanded = onlineModeItems.some((item) => isActive(item.url));
+  const isManualExpanded = manualModeItems.some((item) => isActive(item.url));
 
   const getNavClassName = (path: string) => {
     const active = isActive(path);
@@ -132,7 +168,7 @@ export function ModernSidebar() {
           )}
         </div>
 
-        {/* Main Navigation */}
+        {/* Online Mode Navigation */}
         <SidebarGroup 
           className="px-3 py-4"
         >
@@ -140,12 +176,47 @@ export function ModernSidebar() {
             "text-sidebar-foreground/70 text-xs font-semibold uppercase tracking-wider mb-2",
             collapsed && "hidden"
           )}>
-            Trading
+            Онлайн торговля
           </SidebarGroupLabel>
 
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
-              {navigationItems.map((item) => (
+              {onlineModeItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink to={item.url} className={getNavClassName(item.url)}>
+                      <item.icon className={cn(
+                        "h-5 w-5 flex-shrink-0 transition-colors",
+                        isActive(item.url) && "text-sidebar-primary-foreground"
+                      )} />
+                      {!collapsed && (
+                        <div className="flex flex-col">
+                          <span className="font-medium text-sm">{item.title}</span>
+                          <span className="text-xs opacity-70">{item.description}</span>
+                        </div>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Manual Mode Navigation */}
+        <SidebarGroup 
+          className="px-3 py-4"
+        >
+          <SidebarGroupLabel className={cn(
+            "text-sidebar-foreground/70 text-xs font-semibold uppercase tracking-wider mb-2",
+            collapsed && "hidden"
+          )}>
+            Ручной режим
+          </SidebarGroupLabel>
+
+          <SidebarGroupContent>
+            <SidebarMenu className="space-y-1">
+              {manualModeItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} className={getNavClassName(item.url)}>
