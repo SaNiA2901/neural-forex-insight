@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
 import {
   TrendingUp,
   BarChart3,
@@ -122,15 +121,75 @@ const settingsItems = [
 
 export function ModernSidebar() {
   const { state } = useSidebar();
-  const location = useLocation();
-  const currentPath = location.pathname;
   const collapsed = state === "collapsed";
 
-  const isActive = (path: string) => currentPath === path;
-  const isOnlineMode = currentPath.startsWith('/online') || currentPath === '/';
-  const isManualMode = currentPath.startsWith('/manual');
-  const isOnlineExpanded = onlineModeItems.some((item) => isActive(item.url));
-  const isManualExpanded = manualModeItems.some((item) => isActive(item.url));
+  // Используем localStorage для отслеживания активного режима и подраздела
+  const getCurrentMode = () => {
+    try {
+      return localStorage.getItem('active-mode') || 'online';
+    } catch {
+      return 'online';
+    }
+  };
+  
+  const getCurrentSubsection = () => {
+    try {
+      return localStorage.getItem('active-subsection') || '';
+    } catch {
+      return '';
+    }
+  };
+
+  const [activeMode, setActiveMode] = useState(getCurrentMode());
+  const [activeSubsection, setActiveSubsection] = useState(getCurrentSubsection());
+
+  const isActive = (path: string) => {
+    if (path === '/') return activeMode === 'online' && activeSubsection === '';
+    if (path === '/manual') return activeMode === 'manual' && activeSubsection === '';
+    
+    // Проверяем подразделы
+    if (path.startsWith('/online/')) {
+      const subsection = path.replace('/online/', '');
+      return activeMode === 'online' && activeSubsection === subsection;
+    }
+    if (path.startsWith('/manual/')) {
+      const subsection = path.replace('/manual/', '');
+      return activeMode === 'manual' && activeSubsection === subsection;
+    }
+    
+    return false;
+  };
+
+  const handleNavigation = (path: string) => {
+    if (path === '/') {
+      setActiveMode('online');
+      setActiveSubsection('');
+      localStorage.setItem('active-mode', 'online');
+      localStorage.setItem('active-subsection', '');
+    } else if (path === '/manual') {
+      setActiveMode('manual');
+      setActiveSubsection('');
+      localStorage.setItem('active-mode', 'manual');
+      localStorage.setItem('active-subsection', '');
+    } else if (path.startsWith('/online/')) {
+      const subsection = path.replace('/online/', '');
+      setActiveMode('online');
+      setActiveSubsection(subsection);
+      localStorage.setItem('active-mode', 'online');
+      localStorage.setItem('active-subsection', subsection);
+    } else if (path.startsWith('/manual/')) {
+      const subsection = path.replace('/manual/', '');
+      setActiveMode('manual');
+      setActiveSubsection(subsection);
+      localStorage.setItem('active-mode', 'manual');
+      localStorage.setItem('active-subsection', subsection);
+    }
+    
+    // Отправляем событие для обновления основного компонента
+    window.dispatchEvent(new CustomEvent('navigation-change', { 
+      detail: { mode: activeMode, subsection: activeSubsection } 
+    }));
+  };
 
   const getNavClassName = (path: string) => {
     const active = isActive(path);
@@ -184,7 +243,10 @@ export function ModernSidebar() {
               {onlineModeItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavClassName(item.url)}>
+                    <button 
+                      onClick={() => handleNavigation(item.url)}
+                      className={getNavClassName(item.url)}
+                    >
                       <item.icon className={cn(
                         "h-5 w-5 flex-shrink-0 transition-colors",
                         isActive(item.url) && "text-sidebar-primary-foreground"
@@ -195,7 +257,7 @@ export function ModernSidebar() {
                           <span className="text-xs opacity-70">{item.description}</span>
                         </div>
                       )}
-                    </NavLink>
+                    </button>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -219,7 +281,10 @@ export function ModernSidebar() {
               {manualModeItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavClassName(item.url)}>
+                    <button 
+                      onClick={() => handleNavigation(item.url)}
+                      className={getNavClassName(item.url)}
+                    >
                       <item.icon className={cn(
                         "h-5 w-5 flex-shrink-0 transition-colors",
                         isActive(item.url) && "text-sidebar-primary-foreground"
@@ -230,7 +295,7 @@ export function ModernSidebar() {
                           <span className="text-xs opacity-70">{item.description}</span>
                         </div>
                       )}
-                    </NavLink>
+                    </button>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -245,7 +310,10 @@ export function ModernSidebar() {
               {settingsItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavClassName(item.url)}>
+                    <button 
+                      onClick={() => handleNavigation(item.url)}
+                      className={getNavClassName(item.url)}
+                    >
                       <item.icon className={cn(
                         "h-5 w-5 flex-shrink-0 transition-colors",
                         isActive(item.url) && "text-sidebar-primary-foreground"
@@ -253,7 +321,7 @@ export function ModernSidebar() {
                       {!collapsed && (
                         <span className="font-medium text-sm">{item.title}</span>
                       )}
-                    </NavLink>
+                    </button>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
