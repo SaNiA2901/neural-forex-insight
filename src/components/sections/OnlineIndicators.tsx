@@ -6,6 +6,7 @@ import MACDIndicator from "@/components/ui/MACDIndicator";
 import MovingAveragesIndicator from "@/components/ui/MovingAveragesIndicator";
 import StochasticIndicator from "@/components/ui/StochasticIndicator";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
+import { useIndicatorData } from "@/hooks/useIndicatorData";
 
 interface OnlineIndicatorsProps {
   pair: string;
@@ -13,6 +14,8 @@ interface OnlineIndicatorsProps {
 }
 
 export function OnlineIndicators({ pair, timeframe }: OnlineIndicatorsProps) {
+  const { indicators, indicatorData } = useIndicatorData(pair, timeframe);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -53,7 +56,7 @@ export function OnlineIndicators({ pair, timeframe }: OnlineIndicatorsProps) {
           </CardHeader>
           <CardContent>
             <ErrorBoundary>
-              <RSIIndicator />
+              <RSIIndicator rsi={indicators.rsi} />
             </ErrorBoundary>
           </CardContent>
         </Card>
@@ -67,7 +70,7 @@ export function OnlineIndicators({ pair, timeframe }: OnlineIndicatorsProps) {
           </CardHeader>
           <CardContent>
             <ErrorBoundary>
-              <MACDIndicator />
+              <MACDIndicator macd={indicators.macd} chartData={indicatorData} />
             </ErrorBoundary>
           </CardContent>
         </Card>
@@ -84,7 +87,7 @@ export function OnlineIndicators({ pair, timeframe }: OnlineIndicatorsProps) {
           </CardHeader>
           <CardContent>
             <ErrorBoundary>
-              <MovingAveragesIndicator />
+              <MovingAveragesIndicator ma20={indicators.ma20} ma50={indicators.ma50} />
             </ErrorBoundary>
           </CardContent>
         </Card>
@@ -98,7 +101,7 @@ export function OnlineIndicators({ pair, timeframe }: OnlineIndicatorsProps) {
           </CardHeader>
           <CardContent>
             <ErrorBoundary>
-              <StochasticIndicator />
+              <StochasticIndicator stochastic={indicators.stochastic} />
             </ErrorBoundary>
           </CardContent>
         </Card>
