@@ -118,7 +118,7 @@ export default function Index() {
         case "predictions":
           return <ManualPredictions pair={selectedPair} timeframe={timeframe} />;
         default:
-          return <ManualMode />;
+          return <ManualMode pair={selectedPair} timeframe={timeframe} />;
       }
     }
 
@@ -158,7 +158,7 @@ export default function Index() {
             </TabsContent>
 
             <TabsContent value="manual" className="mt-6">
-              <ManualMode />
+              <ManualMode pair={selectedPair} timeframe={timeframe} />
             </TabsContent>
           </Tabs>
         )}

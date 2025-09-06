@@ -124,23 +124,10 @@ export const NewSessionManager: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <SessionList
-        sessions={state.sessions}
-        currentSessionId={state.currentSession?.id}
-        isLoading={state.isLoading}
-        searchTerm={searchTerm}
-        sortBy={sortBy}
-        filterBy={filterBy}
-        onSearchChange={setSearchTerm}
-        onSortChange={setSortBy}
-        onFilterChange={setFilterBy}
-        onCreateSession={handleCreateSession}
-        onSelectSession={handleSelectSession}
-        onDeleteSession={handleDeleteSession}
-        onDuplicateSession={handleDuplicateSession}
-        onRefresh={handleRefresh}
-      />
-
+      <div className="text-center p-8 text-muted-foreground">
+        <p>Менеджер сессий временно недоступен</p>
+      </div>
+      
       <SessionForm
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}

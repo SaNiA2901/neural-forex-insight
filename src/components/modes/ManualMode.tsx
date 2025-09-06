@@ -1,329 +1,201 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { 
-  Plus, 
-  Play, 
-  Clock,
-  TrendingUp,
-  Target,
-  Brain,
-  Database,
-  Calendar,
-  LineChart
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useStateManager } from "@/hooks/useStateManager";
-import CandleInput from "@/components/ui/CandleInput";
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ManualCharts } from "@/components/sections/ManualCharts";
+import { ManualAnalytics } from "@/components/sections/ManualAnalytics";
+import { ManualIndicators } from "@/components/sections/ManualIndicators";
+import { ManualPatterns } from "@/components/sections/ManualPatterns";
+import { ManualPredictions } from "@/components/sections/ManualPredictions";
+import { SessionCreator } from "@/components/ui/session/SessionCreator";
+import { SessionList } from "@/components/ui/session/SessionList";
+import { CandleDataInput } from "@/components/ui/candle/CandleDataInput";
+import { Database, BarChart3 } from "lucide-react";
 
-const currencyPairs = [
-  "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF", "AUD/USD", 
-  "USD/CAD", "NZD/USD", "EUR/GBP", "EUR/JPY", "GBP/JPY"
-];
+interface ManualModeProps {
+  pair?: string;
+  timeframe?: string;
+}
 
-const timeframes = [
-  { value: "1m", label: "1 минута", minutes: 1 },
-  { value: "5m", label: "5 минут", minutes: 5 },
-  { value: "15m", label: "15 минут", minutes: 15 },
-  { value: "30m", label: "30 минут", minutes: 30 },
-  { value: "1h", label: "1 час", minutes: 60 },
-  { value: "4h", label: "4 часа", minutes: 240 },
-  { value: "1d", label: "1 день", minutes: 1440 }
-];
+interface Session {
+  id: string;
+  session_name: string;
+  pair: string;
+  timeframe: string;
+  start_time: string;
+  created_at: string;
+  candles_count: number;
+  status: 'active' | 'paused' | 'completed';
+}
 
-export function ManualMode() {
-  const { 
-    sessions, 
-    currentSession, 
-    candles,
-    createSession,
-    getAppStatistics 
-  } = useStateManager();
-  
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [sessionName, setSessionName] = useState("");
-  const [selectedPair, setSelectedPair] = useState("EUR/USD");
-  const [selectedTimeframe, setSelectedTimeframe] = useState("1h");
-  const [startTime, setStartTime] = useState(new Date().toISOString().slice(0, 16));
+interface CandleData {
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  timestamp: string;
+}
 
-  const stats = getAppStatistics();
+export function ManualMode({ pair = "EUR/USD", timeframe = "1h" }: ManualModeProps = {}) {
+  const [currentSession, setCurrentSession] = useState<Session | null>(null);
+  const [sessionCandles, setSessionCandles] = useState<CandleData[]>([]);
 
-  const handleCreateSession = async () => {
-    if (!sessionName.trim()) return;
-
-    try {
-      await createSession({
-        session_name: sessionName,
-        pair: selectedPair,
-        timeframe: selectedTimeframe,
-        start_date: new Date(startTime).toISOString().split('T')[0],
-        start_time: new Date(startTime).toISOString()
-      });
-      
-      setShowCreateForm(false);
-      setSessionName("");
-    } catch (error) {
-      console.error('Ошибка создания сессии:', error);
+  useEffect(() => {
+    // Загружаем последнюю активную сессию при монтировании
+    const sessions = JSON.parse(localStorage.getItem('trading_sessions') || '[]');
+    const activeSession = sessions.find((s: Session) => s.status === 'active');
+    if (activeSession) {
+      setCurrentSession(activeSession);
+      loadSessionCandles(activeSession.id);
     }
+  }, []);
+
+  const loadSessionCandles = (sessionId: string) => {
+    const candles = JSON.parse(localStorage.getItem(`session_candles_${sessionId}`) || '[]');
+    setSessionCandles(candles);
   };
 
-  const getTimeframeLabel = (tf: string) => {
-    return timeframes.find(t => t.value === tf)?.label || tf;
+  const handleSessionCreated = (session: Session) => {
+    setCurrentSession(session);
+    setSessionCandles([]);
   };
 
-  const formatDateTime = (date: string) => {
-    return new Date(date).toLocaleString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit', 
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const handleSessionSelect = (session: Session) => {
+    setCurrentSession(session);
+    loadSessionCandles(session.id);
   };
 
-  const currentSessionCandles = currentSession 
-    ? candles.filter(c => c.session_id === currentSession.id)
-    : [];
+  const handleSessionDelete = (sessionId: string) => {
+    if (currentSession?.id === sessionId) {
+      setCurrentSession(null);
+      setSessionCandles([]);
+    }
+    // Удаляем данные свечей сессии
+    localStorage.removeItem(`session_candles_${sessionId}`);
+  };
+
+  const getNextCandleTime = () => {
+    if (!currentSession) return new Date().toISOString();
+    
+    if (sessionCandles.length === 0) {
+      return currentSession.start_time;
+    }
+
+    const lastCandle = sessionCandles[sessionCandles.length - 1];
+    const lastTime = new Date(lastCandle.timestamp);
+    
+    // Добавляем интервал в зависимости от таймфрейма
+    const timeframeMinutes = {
+      '1m': 1,
+      '5m': 5,
+      '15m': 15,
+      '30m': 30,
+      '1h': 60,
+      '4h': 240,
+      '1d': 1440
+    };
+
+    const minutes = timeframeMinutes[currentSession.timeframe as keyof typeof timeframeMinutes] || 1;
+    lastTime.setMinutes(lastTime.getMinutes() + minutes);
+    
+    return lastTime.toISOString();
+  };
+
+  const handleCandleAdded = (candle: CandleData) => {
+    if (!currentSession) return;
+
+    const updatedCandles = [...sessionCandles, candle];
+    setSessionCandles(updatedCandles);
+    
+    // Сохраняем свечи в localStorage
+    localStorage.setItem(`session_candles_${currentSession.id}`, JSON.stringify(updatedCandles));
+    
+    // Обновляем счетчик свечей в сессии
+    const sessions = JSON.parse(localStorage.getItem('trading_sessions') || '[]');
+    const updatedSessions = sessions.map((s: Session) => 
+      s.id === currentSession.id ? { ...s, candles_count: updatedCandles.length } : s
+    );
+    localStorage.setItem('trading_sessions', JSON.stringify(updatedSessions));
+    
+    setCurrentSession(prev => prev ? { ...prev, candles_count: updatedCandles.length } : null);
+  };
+
+  if (!currentSession) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-foreground mb-2">Ручной режим</h1>
+          <p className="text-muted-foreground">
+            Создайте сессию и вводите данные OHLCV вручную для анализа
+          </p>
+        </div>
+
+        <SessionCreator onSessionCreated={handleSessionCreated} />
+        <SessionList 
+          currentSession={currentSession}
+          onSessionSelect={handleSessionSelect}
+          onSessionDelete={handleSessionDelete}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Заголовок */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Ручной режим</h1>
-          <p className="text-muted-foreground">Создание сессий и ручной ввод данных OHLCV</p>
+          <p className="text-muted-foreground">
+            Сессия: {currentSession.session_name} • {currentSession.pair} • {currentSession.timeframe}
+          </p>
         </div>
-        <Button 
-          onClick={() => setShowCreateForm(true)}
-          className="trading-button-primary"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Новая сессия
-        </Button>
+        <div className="text-sm text-muted-foreground">
+          Свечей: {sessionCandles.length}
+        </div>
       </div>
 
-      {/* Статистика */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="trading-card">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-primary/10 rounded-xl">
-                <Database className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Всего сессий</p>
-                <p className="text-2xl font-bold text-foreground">{stats.totalSessions}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="trading-card">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-trading-success/10 rounded-xl">
-                <LineChart className="h-6 w-6 text-trading-success" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Всего свечей</p>
-                <p className="text-2xl font-bold text-foreground">{stats.totalCandles}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="trading-card">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-trading-warning/10 rounded-xl">
-                <Target className="h-6 w-6 text-trading-warning" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Прогнозов</p>
-                <p className="text-2xl font-bold text-foreground">{stats.predictionsCount}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="trading-card">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-muted/30 rounded-xl">
-                <Clock className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Активная сессия</p>
-                <p className="text-lg font-bold text-foreground">
-                  {currentSession ? currentSession.session_name : "Нет"}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <CandleDataInput 
+          session={currentSession}
+          onCandleAdded={handleCandleAdded}
+          nextCandleTime={getNextCandleTime()}
+        />
+        <SessionList 
+          currentSession={currentSession}
+          onSessionSelect={handleSessionSelect}
+          onSessionDelete={handleSessionDelete}
+        />
       </div>
 
-      {/* Форма создания сессии */}
-      {showCreateForm && (
-        <Card className="trading-card">
-          <CardHeader>
-            <CardTitle>Создание новой сессии</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Название сессии</Label>
-                <Input
-                  placeholder="Введите название сессии"
-                  value={sessionName}
-                  onChange={(e) => setSessionName(e.target.value)}
-                />
-              </div>
+      <Tabs defaultValue="charts" className="w-full">
+        <TabsList className="grid grid-cols-5 w-full">
+          <TabsTrigger value="charts">Графики</TabsTrigger>
+          <TabsTrigger value="analytics">Аналитика</TabsTrigger>
+          <TabsTrigger value="indicators">Индикаторы</TabsTrigger>
+          <TabsTrigger value="patterns">Паттерны</TabsTrigger>
+          <TabsTrigger value="predictions">Прогнозы</TabsTrigger>
+        </TabsList>
 
-              <div className="space-y-2">
-                <Label>Валютная пара</Label>
-                <Select value={selectedPair} onValueChange={setSelectedPair}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currencyPairs.map((pair) => (
-                      <SelectItem key={pair} value={pair}>
-                        {pair}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        <TabsContent value="charts" className="space-y-6">
+          <ManualCharts pair={currentSession.pair} timeframe={currentSession.timeframe} />
+        </TabsContent>
 
-              <div className="space-y-2">
-                <Label>Таймфрейм</Label>
-                <Select value={selectedTimeframe} onValueChange={setSelectedTimeframe}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeframes.map((tf) => (
-                      <SelectItem key={tf.value} value={tf.value}>
-                        {tf.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        <TabsContent value="analytics" className="space-y-6">
+          <ManualAnalytics pair={currentSession.pair} timeframe={currentSession.timeframe} />
+        </TabsContent>
 
-              <div className="space-y-2">
-                <Label>Время первой свечи</Label>
-                <Input
-                  type="datetime-local"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                />
-              </div>
-            </div>
+        <TabsContent value="indicators" className="space-y-6">
+          <ManualIndicators pair={currentSession.pair} timeframe={currentSession.timeframe} />
+        </TabsContent>
 
-            <div className="flex gap-3">
-              <Button 
-                onClick={handleCreateSession}
-                disabled={!sessionName.trim()}
-                className="trading-button-primary"
-              >
-                <Play className="h-4 w-4 mr-2" />
-                Создать сессию
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => setShowCreateForm(false)}
-              >
-                Отмена
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        <TabsContent value="patterns" className="space-y-6">
+          <ManualPatterns pair={currentSession.pair} timeframe={currentSession.timeframe} />
+        </TabsContent>
 
-      {/* Список сессий */}
-      <Card className="trading-card">
-        <CardHeader>
-          <CardTitle>Список сессий</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {sessions.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Нет созданных сессий</p>
-              <p className="text-sm">Создайте первую сессию для начала работы</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {sessions.map((session) => {
-                const sessionCandlesCount = candles.filter(c => c.session_id === session.id).length;
-                const isActive = currentSession?.id === session.id;
-                
-                return (
-                  <div 
-                    key={session.id} 
-                    className={cn(
-                      "p-4 rounded-lg border transition-colors",
-                      isActive 
-                        ? "border-primary bg-primary/5" 
-                        : "border-border hover:border-border/80"
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div>
-                          <h3 className="font-semibold text-foreground">{session.session_name}</h3>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <span>{session.pair}</span>
-                            <span>{getTimeframeLabel(session.timeframe)}</span>
-                            <span>{formatDateTime(session.start_time)}</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <Badge variant={isActive ? "default" : "secondary"}>
-                          {sessionCandlesCount} свечей
-                        </Badge>
-                        {isActive && (
-                          <Badge className="bg-trading-success/10 text-trading-success">
-                            Активная
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Ввод данных для текущей сессии */}
-      {currentSession && (
-        <Card className="trading-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Brain className="h-5 w-5 text-primary" />
-              Ввод данных свечей - {currentSession.session_name}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CandleInput
-              currentSession={currentSession}
-              candles={currentSessionCandles}
-              pair={currentSession.pair}
-              onCandleSaved={async () => {}}
-            />
-          </CardContent>
-        </Card>
-      )}
+        <TabsContent value="predictions" className="space-y-6">
+          <ManualPredictions pair={currentSession.pair} timeframe={currentSession.timeframe} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
